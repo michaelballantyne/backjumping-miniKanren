@@ -200,6 +200,7 @@
      (lambdag@ (s k version min-jump)
        (inc
          (mplus*
+           version
            ((bind* g0 g ...) s k (+ 1 version) min-jump)
            ((bind* g1 g^ ...) s k (+ 1 version) min-jump) ...))))))
 
@@ -210,10 +211,12 @@
 
 (define-syntax mplus*
   (syntax-rules ()
-    ((_ e) e)
-    ((_ e0 e ...) (mplus
-                    e0
-                    (lambdaf@ () (mplus* e ...))))))
+    ((_ version e) e)
+    ((_ version e0 e ...)
+     (mplus
+       version
+       e0
+       (lambdaf@ () (mplus* version e ...))))))
 
 (define (conj g1 g2)
   (lambdag@ (s k top-version top-min-jump)
@@ -235,7 +238,7 @@
                 (values bottom-version bottom-min-jump))])
             (conj-bottom
               (g2 s k version min-jump)
-              version
+              bottom-version
               top-version)))
         top-version
         top-min-jump)
@@ -243,38 +246,46 @@
 
 ; Disjunction with two live branches
 (define mplus
-  (lambda (a-inf f)
+  (lambda (version a-inf f)
     (case-inf a-inf
       ((target mode)
        (if mode
          (failure target mode)
-         (mplus-failed (f) target)))
-      ((f^) (inc (mplus (f) f^)))
-      ((a) (choice a f))
-      ((a f^) (choice a (inc (mplus (f) f^)))))))
+         (mplus-single (f) target)))
+      ((f^) (inc (mplus version (f) f^)))
+      ((a) (choice a (inc (mplus-succeeded (f) version))))
+      ((a f^) (choice a (inc (mplus version (f) f^)))))))
+
+(define mplus-succeeded
+  (lambda (a-inf original-version)
+    (case-inf a-inf
+      ((target mode)
+       (if mode
+         (error 'btsucc "tried to destructively backtrack where we've already succeeded on one branch")
+         (failure (max target original-version) #f)))
+      ((f^) (inc (mplus-succeeded (f^) original-version)))
+      ((a) a)
+      ((a f^) (choice a (inc (mplus-succeeded (f^) original-version)))))
+    ))
 
 ; Disjunction where one branch failed
-(define mplus-failed
+(define mplus-single
   (lambda (a-inf other-target)
     (case-inf a-inf
       ((target mode)
        (if mode
-         ; if we're destructively backtracking, ignore the other failure
-         ; TODO: can this happen? Wouldn't we have destructively backtracked
-         ; past this point via the other branch? Let's assert that it shouldn't...
          (failure target mode)
-         ;(error 'here "here")
          (failure (max target other-target) #f)))
-      ((f^) (inc (mplus-failed (f^) other-target)))
+      ((f^) (inc (mplus-single (f^) other-target)))
       ((a) a)
-      ((a f^) (choice a (inc (mplus-failed (f^) other-target)))))))
+      ((a f^) (choice a (inc (mplus-single (f^) other-target)))))))
 
 (define conj-top
   (lambda (a-inf version)
     (case-inf a-inf
       ((target mode)
        (cond
-         ; backjump complete; backtracking by single version from here. TODO: should this be a inequality instead?
+         ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
          [(= target version) (failure (- version 1) #f)]
          ; switch back to combining mode. TODO: should this be a inequality instead?
          [(eqv? mode version) (failure target #f)]
@@ -289,7 +300,7 @@
     (case-inf a-inf
       ((target mode)
        (cond
-         ; backjump complete; backtracking by single version from here. TODO: should this be a inequality instead?
+         ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
          [(= target version) (failure (- version 1) #f)]
          ; if not in destructive, switch to it
          [else (failure target (or mode top-version))]))

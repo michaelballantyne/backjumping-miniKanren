@@ -11,6 +11,31 @@
 
 (load "backjumping.scm")
 
+(define nl (string #\newline))
+
+(define (cout . args)
+  (for-each (lambda (x)
+              (if (procedure? x) (x) (display x)))
+            args))
+
+(define errorf
+  (lambda (tag . args)
+    (printf "Failed: ~s: ~%" tag)
+    (apply printf args)
+    (error 'WiljaCodeTester "That's all, folks!")))
+
+(define-syntax test-check
+  (syntax-rules ()
+                ((_ title tested-expression expected-result)
+                 (begin
+                   (cout "Testing " title nl)
+                   (let* ((expected expected-result)
+                          (produced tested-expression))
+                     (or (equal? expected produced)
+                         (errorf 'test-check
+                                 "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
+                                 'tested-expression expected produced)))))))
+
 ;;; Syntax
 
 ;; Peano numbers
@@ -67,24 +92,6 @@
          (vl v)
          (venv e))))))
 
-;;; Helpers
-
-;; Disequality for Peano Numbers
-#|
-(define neq
-  (lambda (n1 n2)
-    (conde
-      ((== n1 'z)
-       (fresh (n2-1)
-         (== n2 `(s ,n2-1))))
-      ((== n2 'z)
-       (fresh (n1-1)
-         (== n1 `(s ,n1-1))))
-      ((fresh (n1-1 n2-1)
-         (== n1 `(s ,n1-1))
-         (== n2 `(s ,n2-1)))))))
-|#
-
 (define neq
   (lambda (n1 n2)
     (conde
@@ -134,98 +141,10 @@
          (ev e t2 `(code ,c2))
          (== v `(code ,(list c1 c2))))))))
 
-;;; Normalization (of terms, so that they can be evaluated in Scheme)
-;; Our language is a subset of Scheme, except that we need to turn
-;; our peano-encoded variables into Scheme symbols.
 
-;; Normalizes the list (s ...(s <x>)) to s...s<x>,
-;; where s can be applied 0 or more times to the symbol <x>,
-;; which will be either z or an unbound logic variable such as _.0.
-
-(define (assert p)
-  (if (not p)
-    (error "error")
-    (void)))
-
-(define normalize-var-name
-  (lambda (n)
-    (if (and (list? n) (eq? 's (car n)) (null? (cddr n)))
-      (string->symbol (string-append
-                        (symbol->string (car n))
-                        (symbol->string (normalize-var-name (cadr n)))))
-      (begin
-        (assert (symbol? n))
-        n))))
-
-;; Normalizes all occurrences of (vr <peano>) to a symbol.
-(define normalize
-  (lambda (t)
-    (if (list? t)
-      (if (and (eq? 'vr (car t)) (null? (cddr t)))
-        (normalize-var-name (cadr t))
-        (map normalize t))
-      (begin
-        (assert (not (eq? 'vr t)))
-        t))))
-
-;;;; Tests
-
-(define ok
-  (lambda (r)
-    (assert (not (null? r)))
-    r))
-
-;; Quine verification.
-(define quine
-  '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
-    (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
-(ok
-  (normalize
-    (run* (q)
-      (ev '()
-          quine
-          `(code ,quine)))))
-
-;;; Quine generation.
-(display (time (length (run 2 (q)
-                   (ev '()
-                       q
-                       `(code ,q))))))
-
-;;; Twine generation.
-;(ok
-;(map
-;(lambda (ab)
-;(let ((a (car ab))
-;(b (cadr ab)))
-;(assert (equal? (eval a) b))
-;(assert (equal? (eval b) a))
-;(list a b)))
-;(normalize
-;(run 1 (q)
-;(fresh (a b)
-;(== q `(,a ,b))
-;(ev '() a `(code ,b))
-;(ev '() b `(code ,a)))))))
-
-
-
-;;;; shadowing tests
-;(ok
-;(run 1 (q)
-;(ev '()
-;'(((lambda ((vr z)) (lambda ((vr z)) (vr z))) (quote 5)) (quote 6))
-;q)))
-
-;(ok
-;(run 1 (q)
-;(ev '()
-;'(((lambda ((vr z)) (lambda ((vr z)) (vr z))) (quote 6)) (quote 5))
-;q)))
-
-
-;(ok
-;(run 1 (q)
-;(ev '()
-;q
-;'(code (I love you)))))
+(test-check "to5"
+  (length (run 100 (q)
+       (ev '()
+           `(list ,q '6)
+           '(code (5 6)))))
+  100)

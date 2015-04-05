@@ -11,6 +11,31 @@
 
 (load "backjumping.scm")
 
+(define nl (string #\newline))
+
+(define (cout . args)
+  (for-each (lambda (x)
+              (if (procedure? x) (x) (display x)))
+            args))
+
+(define errorf
+  (lambda (tag . args)
+    (printf "Failed: ~s: ~%" tag)
+    (apply printf args)
+    (error 'WiljaCodeTester "That's all, folks!")))
+
+(define-syntax test-check
+  (syntax-rules ()
+                ((_ title tested-expression expected-result)
+                 (begin
+                   (cout "Testing " title nl)
+                   (let* ((expected expected-result)
+                          (produced tested-expression))
+                     (or (equal? expected produced)
+                         (errorf 'test-check
+                                 "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
+                                 'tested-expression expected produced)))))))
+
 ;;; Syntax
 
 ;; Peano numbers
@@ -179,18 +204,65 @@
 (define quine
   '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
     (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
-(ok
-  (normalize
-    (run* (q)
-      (ev '()
-          quine
-          `(code ,quine)))))
+
+(test-check "check-quine"
+  (run* (q)
+    (== q quine)
+    (ev '()
+        quine
+        `(code ,quine)))
+  (list quine))
+
+(test-check "identity-check"
+  (run 1 (q)
+    (ev '()
+        '((lambda ((vr x)) (vr x)) (quote 5))
+        '(code 5)))
+  '(_.0))
+
+(test-check "identity"
+  (run 1 (q)
+    (ev '()
+        '((lambda ((vr x)) (vr x)) (quote 5))
+        q))
+  '((code 5)))
+  
+
+(test-check "to5"
+  (run 10 (q)
+       (ev '()
+           `(list ,q '6)
+           '(code (5 6))))
+  '('5 ((lambda ((vr _.0)) '5) (lambda ((vr _.1)) _.2))))
+
+(test-check "identity-backwards"
+  (run 2 (q)
+    (ev '()
+        `((lambda ((vr x)) (vr x)) ,q)
+        '(code 5)))
+  '('5 ((lambda ((vr _.0)) '5) (lambda ((vr _.1)) _.2))))
+
+(test-check "trivial quine check"
+  (run 1 (q)
+       (== q quine)
+       (ev '()
+           q
+           `(code ,q)))
+  '(((lambda ((vr z)) (list (vr z) (list 'quote (vr z))))
+   '(lambda ((vr z)) (list (vr z) (list 'quote (vr z)))))))
+
+(test-check "first quine"
+  (run 1 (q)
+       (ev '()
+           q
+           `(code ,q)))
+  '??)
 
 ;;; Quine generation.
-(display (time (length (run 2 (q)
-                   (ev '()
-                       q
-                       `(code ,q))))))
+;(display (time (length (run 2 (q)
+                   ;(ev '()
+                       ;q
+                       ;`(code ,q))))))
 
 ;;; Twine generation.
 ;(ok
