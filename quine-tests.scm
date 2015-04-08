@@ -229,11 +229,11 @@
   
 
 (test-check "to5"
-  (run 10 (q)
+  (length (run 10 (q)
        (ev '()
            `(list ,q '6)
-           '(code (5 6))))
-  '('5 ((lambda ((vr _.0)) '5) (lambda ((vr _.1)) _.2))))
+           '(code (5 6)))))
+  10)
 
 (test-check "identity-backwards"
   (run 2 (q)

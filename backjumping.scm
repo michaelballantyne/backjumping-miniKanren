@@ -238,7 +238,7 @@
                 (values bottom-version bottom-min-jump))])
             (conj-bottom
               (g2 s k version min-jump)
-              bottom-version
+              bottom-version ; TODO: This might be the bug... Why is it this version? Why not version from let?
               top-version)))
         top-version
         top-min-jump)
@@ -285,8 +285,9 @@
     (case-inf a-inf
       ((target mode)
        (cond
+         ;[(> target version) (error 'here "shouldn't be here")]
          ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
-         [(= target version) (failure (- version 1) #f)]
+         [(>= target version) (failure (- version 1) #f)]
          ; switch back to combining mode. TODO: should this be a inequality instead?
          [(eqv? mode version) (failure target #f)]
          ; still destructively backtracking; fail.
@@ -300,8 +301,9 @@
     (case-inf a-inf
       ((target mode)
        (cond
+         ;[(> target version) (error 'here "shouldn't be here")]
          ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
-         [(= target version) (failure (- version 1) #f)]
+         [(>= target version) (failure (- version 1) #f)]
          ; if not in destructive, switch to it
          [else (failure target (or mode top-version))]))
       ((f^) (inc (conj-bottom (f^) version top-version)))

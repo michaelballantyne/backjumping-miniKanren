@@ -179,14 +179,14 @@
 (define quine
   '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
     (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
-(ok
-  (normalize
-    (run* (q)
-      (ev '()
-          quine
-          `(code ,quine)))))
+;(ok
+  ;(normalize
+    ;(run* (q)
+      ;(ev '()
+          ;quine
+          ;`(code ,quine)))))
 
-;;; Quine generation.
+;;;; Quine generation.
 (display (time (length (run 2 (q)
                    (ev '()
                        q

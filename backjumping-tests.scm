@@ -153,3 +153,12 @@
     #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t
     #t #t #t #t #t #t #t #t #t #t #t))
 
+
+(run* (x)
+  (fresh (y)
+    (fresh ()
+      (conde
+        [(== x 1)]
+        [(== x 1)])
+      (== x y))
+    (== y 2)))
