@@ -1,6 +1,6 @@
 (define-syntax lambdag@
   (syntax-rules ()
-    ((_ (s k version min-jump) e) (lambda (s k version min-jump) e))))
+    ((_ (s k version min-jump destructive-top) e) (lambda (s k version min-jump destructive-top) e))))
 
 (define-syntax lambdaf@
   (syntax-rules ()
@@ -160,12 +160,13 @@
        (take n
              (lambdaf@ ()
                        ((fresh (x) g0 g ...
-                          (lambdag@ (s k version min-jump)
+                          (lambdag@ (s k version min-jump destructive-top)
                                     (cons (reify x s) '())))
                         empty-s ; s
                         (lambda (s version min-jump) s) ; k
                         1 ; version
                         0 ; min-jump
+                        1 ; destructive-top (oldest version a jump can destroy)
                         )))))))
 
 (define take
@@ -183,12 +184,12 @@
 
 (define ==
   (lambda (u v)
-    (lambdag@ (s k version min-jump)
+    (lambdag@ (s k version min-jump destructive-top)
       (let-values ([(s s-f) (unify u v s version min-jump)])
         (set! count (+ 1 count))
         (if s
           (k s version min-jump)
-          (failure s-f #f))))))
+          (failure s-f destructive-top))))))
 
 (define succeed (== #f #f))
 (define fail (== #f #t))
@@ -196,20 +197,21 @@
 (define-syntax fresh
   (syntax-rules ()
     ((_ (x ...) g0 g ...)
-     (lambdag@ (s k version min-jump)
+     (lambdag@ (s k version min-jump destructive-top)
        (inc
          (let ((x (var 'x)) ...)
-           ((bind* g0 g ...) s k version min-jump)))))))
+           ((bind* g0 g ...) s k version min-jump destructive-top)))))))
 
 (define-syntax conde
   (syntax-rules ()
     ((_ (g0 g ...) (g1 g^ ...) ...)
-     (lambdag@ (s k version min-jump)
+     (lambdag@ (s k version min-jump destructive-top)
        (inc
          (mplus*
            version
-           ((bind* g0 g ...) s k (+ 1 version) min-jump)
-           ((bind* g1 g^ ...) s k (+ 1 version) min-jump) ...))))))
+           destructive-top
+           ((bind* g0 g ...) s k (+ 1 version) min-jump (+ 1 version))
+           ((bind* g1 g^ ...) s k (+ 1 version) min-jump (+ 1 version)) ...))))))
 
 (define-syntax bind*
   (syntax-rules ()
@@ -218,101 +220,73 @@
 
 (define-syntax mplus*
   (syntax-rules ()
-    ((_ version e) e)
-    ((_ version e0 e ...)
+    ((_ version destructive-top e) e)
+    ((_ version destructive-top e0 e ...)
      (mplus
-       version
        e0
-       (lambdaf@ () (mplus* version e ...))))))
+       (lambdaf@ () (mplus* version destructive-top e ...))
+       version
+       destructive-top
+       ))))
 
 (define (conj g1 g2)
-  (lambdag@ (s k top-version top-min-jump)
-    (conj-top
-      (g1
-        s
-        (lambda (s bottom-version bottom-min-jump)
-          (let-values
-            ([(version min-jump)
-              ; check if the substitution has been extended in this
-              ; subtree.
-              (if (not (= top-version bottom-version))
-                ; if so, go to new version on exit and set
-                ; minimum jump to version established in this subtree.
-                (values (+ 1 bottom-version)
-                        bottom-version)
-                ; if we didn't extend the substitution, leave the
-                ; version and min-jump alone to allow jumping past the subtree
-                (values bottom-version bottom-min-jump))])
-            (conj-bottom
-              (g2 s k version min-jump)
-              bottom-version ; TODO: This might be the bug... Why is it this version? Why not version from let?
-              top-version)))
-        top-version
-        top-min-jump)
-      top-version)))
+  (lambdag@ (s k top-version top-min-jump destructive-top)
+    (g1
+      s
+      (lambda (s bottom-version bottom-min-jump)
+        (let-values
+          ([(version min-jump)
+            ; check if the substitution has been extended in this
+            ; subtree.
+            (if (not (= top-version bottom-version))
+              ; if so, go to new version on exit and set
+              ; minimum jump to version established in this subtree.
+              (values (+ 1 bottom-version)
+                      bottom-version)
+              ; if we didn't extend the substitution, leave the
+              ; version and min-jump alone to allow jumping past the subtree
+              (values bottom-version bottom-min-jump))])
+          (g2 s k version min-jump top-version)))
+      top-version
+      top-min-jump
+      destructive-top)))
 
 ; Disjunction with two live branches
 (define mplus
-  (lambda (version a-inf f)
+  (lambda (a-inf f version destructive-top)
     (case-inf a-inf
       ((target mode)
-       (if mode
-         (failure target mode)
-         (mplus-single (f) target)))
-      ((f^) (inc (mplus version (f) f^)))
-      ((a) (choice a (inc (mplus-succeeded (f) version))))
-      ((a f^) (choice a (inc (mplus version (f) f^)))))))
+       (if (and (<= target version) (<= mode version))
+         ; Backjumping beyond here and have the mode to do it destructively.
+         ; Propagate failure and if we have a more powerful destructive-top
+         ; use that as new mode.
+         (failure target (min mode destructive-top))
 
-(define mplus-succeeded
-  (lambda (a-inf original-version)
-    (case-inf a-inf
-      ((target mode)
-       (if mode
-         (error 'btsucc "tried to destructively backtrack where we've already succeeded on one branch")
-         (failure (max target original-version) #f)))
-      ((f^) (inc (mplus-succeeded (f^) original-version)))
-      ((a) a)
-      ((a f^) (choice a (inc (mplus-succeeded (f^) original-version)))))
-    ))
+         ; Otherwise backjumping stalls here. Resume when we know what the
+         ; other branch does. If the stalled jump wouldn't reach past here
+         ; we'll resume the jump with this node's version.
+         (mplus-single (f) version (min target version) destructive-top)))
+      ((f^) (inc (mplus (f) f^ version destructive-top)))
+      ((a) (choice a (inc (mplus-single (f) version version destructive-top))))
+      ((a f^) (choice a (inc (mplus (f) f^ version destructive-top)))))))
 
-; Disjunction where one branch failed
+; Disjunction where one branch succeeded finitely or failed
 (define mplus-single
-  (lambda (a-inf other-target)
+  (lambda (a-inf version other-target destructive-top)
     (case-inf a-inf
       ((target mode)
-       (if mode
-         (failure target mode)
-         (failure (max target other-target) #f)))
-      ((f^) (inc (mplus-single (f^) other-target)))
-      ((a) a)
-      ((a f^) (choice a (inc (mplus-single (f^) other-target)))))))
+       (if (and (<= target version) (<= mode version))
+         ; Backjumping beyond here and have the mode to do it destructively.
+         ; Propagate failure and if we have a more powerful destructive-top
+         ; use that as new mode.
+         (failure target (min mode destructive-top))
 
-(define conj-top
-  (lambda (a-inf version)
-    (case-inf a-inf
-      ((target mode)
-       (cond
-         ;[(> target version) (error 'here "shouldn't be here")]
-         ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
-         [(>= target version) (failure (- version 1) #f)]
-         ; switch back to combining mode. TODO: should this be a inequality instead?
-         [(eqv? mode version) (failure target #f)]
-         ; still destructively backtracking; fail.
-         [else (failure target mode)]))
-      ((f^) (inc (conj-top (f^) version)))
+         ; Otherwise combine the failure with the previous. Ignore the mode
+         ; of the triggering failure because either it wasn't powerful enough
+         ; to jump past here or the jump ended prior to this point and we're
+         ; on a new jump.
+         (failure (max target other-target) destructive-top)))
+      ((f^) (inc (mplus-single (f^) version other-target destructive-top)))
       ((a) a)
-      ((a f^) (choice a (inc (conj-top (f^) version)))))))
+      ((a f^) (choice a (inc (mplus-single (f^) version other-target destructive-top)))))))
 
-(define conj-bottom
-  (lambda (a-inf version top-version)
-    (case-inf a-inf
-      ((target mode)
-       (cond
-         ;[(> target version) (error 'here "shouldn't be here")]
-         ; backjump complete; backtracking by single version from here. TODO: should this be an inequality instead?
-         [(>= target version) (failure (- version 1) #f)]
-         ; if not in destructive, switch to it
-         [else (failure target (or mode top-version))]))
-      ((f^) (inc (conj-bottom (f^) version top-version)))
-      ((a) a)
-      ((a f^) (choice a (inc (conj-bottom (f^) version top-version)))))))

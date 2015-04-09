@@ -1,4 +1,4 @@
-(load "backjumping.scm")
+(load "backjumping2.scm")
 
 (define nl (string #\newline))
 
@@ -75,7 +75,7 @@
   '())
 
 (test-check "cons-2"
-  (run* (q) (fresh (e v)
+  (run 2 (q) (fresh (e v)
               (== q `(,e ,v))
               (evalo `(cons ,e #t) `(,v . #t))))
   '((#t #t) (#f #f)))

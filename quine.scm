@@ -9,7 +9,7 @@
 ;; between 'code' and 'clos' for the output value might help, although
 ;; I'm not sure I understand this distinction.
 
-(load "backjumping.scm")
+(load "backjumping2.scm")
 
 ;;; Syntax
 
@@ -191,6 +191,9 @@
                    (ev '()
                        q
                        `(code ,q))))))
+(display "\n")
+
+(display count)
 
 ;;; Twine generation.
 ;(ok
