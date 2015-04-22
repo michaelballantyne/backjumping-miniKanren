@@ -181,6 +181,13 @@
   '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
     (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
 
+(test-check "identity-check"
+  (run* (q)
+    (ev '()
+        '((lambda ((vr x)) (vr x)) (quote 5))
+        '(code 5)))
+  '(_.0))
+
 (test-check "check-quine"
   (run* (q)
     (== q quine)
@@ -189,12 +196,6 @@
         `(code ,quine)))
   (list quine))
 
-(test-check "identity-check"
-  (run 1 (q)
-    (ev '()
-        '((lambda ((vr x)) (vr x)) (quote 5))
-        '(code 5)))
-  '(_.0))
 
 (test-check "identity"
   (run 1 (q)
@@ -232,6 +233,21 @@
            q
            `(code ,q)))
   '(((lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))) '(lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))))))
+
+(test-check "2 quines"
+  (time (length (run 2 (q)
+                     (ev '()
+                         q
+                         `(code ,q)))))
+  2)
+
+
+(test-check "30 quines"
+  (time (length (run 30 (q)
+                     (ev '()
+                         q
+                         `(code ,q)))))
+  20)
 
 ;;; Quine generation.
 ;(display (time (length (run 2 (q)

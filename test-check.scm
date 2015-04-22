@@ -7,6 +7,7 @@
                           (produced tested-expression))
                      (or (equal? expected produced)
                          (begin
-                         (printf
-                                 "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
-                                 'tested-expression expected produced))))))))
+                           (printf
+                             "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
+                             'tested-expression expected produced)
+                           #;(error 'bad "test failed"))))))))
