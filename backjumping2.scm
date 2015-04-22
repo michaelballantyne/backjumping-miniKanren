@@ -45,13 +45,15 @@
       ((and (var? u) (assq u S)) =>
        (lambda (a)
          (let-values ([(r r-f) (walk-f (rhs a) S min-jump)])
-           (let ([assoc-f (car (cdr (cdr a)))])
-             (values r (max r-f (if (> assoc-f min-jump) 0 assoc-f)))))))
+           (let ([assoc-f (car (cdr (cdr a)))]
+                 [other-f (car (cdr (cdr (cdr a))))])
+             (values r (max (if (> other-f min-jump) 0 other-f)
+                         (max r-f (if (> assoc-f min-jump) 0 assoc-f))))))))
       (else (values u 0)))))
 
 (define ext-s
-  (lambda (x v version s)
-    (cons `(,x ,v ,version) s)))
+  (lambda (x v version s jump)
+    (cons `(,x ,v ,version ,jump) s)))
 
 (define unify
   (lambda (u^ v^ s version min-jump)
@@ -59,8 +61,8 @@
                  [(v v-f) (walk-f v^ s min-jump)])
       (cond
         ((eq? u v) (values s #f))
-        ((var? u) (ext-s-check u v^ version s (max u-f v-f)))
-        ((var? v) (ext-s-check v u^ version s (max u-f v-f)))
+        ((var? u) (ext-s-check u v version s (max u-f v-f)))
+        ((var? v) (ext-s-check v u version s (max u-f v-f)))
         ((and (pair? u) (pair? v))
          (let-values ([(car-s car-f)
                        (unify (car u) (car v) s version min-jump)])
@@ -80,7 +82,7 @@
   (lambda (x v version s jump)
     (cond
       ((occurs-check x v s) (values #f jump))
-      (else (values (ext-s x v version s) #f)))))
+      (else (values (ext-s x v version s jump) #f)))))
 
 (define occurs-check
   (lambda (x v s)
@@ -109,7 +111,7 @@
     (let ((v (walk v s)))
       (cond
         ((var? v)
-         (ext-s v (reify-name (size-s s)) 0 s))
+         (ext-s v (reify-name (size-s s)) 0 s 0))
         ((pair? v) (reify-s (cdr v)
                      (reify-s (car v) s)))
         (else s)))))
@@ -163,10 +165,10 @@
                           (lambdag@ (s k version min-jump destructive-top)
                                     (cons (reify x s) '())))
                         empty-s ; s
-                        (lambda (s version min-jump) s) ; k
-                        1 ; version
+                        (lambda (s version min-jump destructive-top) s) ; k
+                        0 ; version
                         0 ; min-jump
-                        1 ; destructive-top (oldest version a jump can destroy)
+                        0 ; destructive-top (oldest version a jump can destroy)
                         )))))))
 
 (define take
@@ -188,7 +190,7 @@
       (let-values ([(s s-f) (unify u v s version min-jump)])
         (set! count (+ 1 count))
         (if s
-          (k s version min-jump)
+          (k s version min-jump destructive-top)
           (failure s-f destructive-top))))))
 
 (define succeed (== #f #f))
@@ -230,15 +232,15 @@
        ))))
 
 (define (conj g1 g2)
-  (lambdag@ (s k top-version top-min-jump destructive-top)
+  (lambdag@ (s k top-version top-min-jump top-destructive-top)
     (g1
       s
-      (lambda (s bottom-version bottom-min-jump)
+      (lambda (s bottom-version bottom-min-jump bottom-destructive-top)
         (let-values
           ([(version min-jump)
             ; check if the substitution has been extended in this
             ; subtree.
-            (if (not (= top-version bottom-version))
+            (if (and (not (= top-version bottom-version)) (= bottom-version bottom-destructive-top))
               ; if so, go to new version on exit and set
               ; minimum jump to version established in this subtree.
               (values (+ 1 bottom-version)
@@ -246,10 +248,10 @@
               ; if we didn't extend the substitution, leave the
               ; version and min-jump alone to allow jumping past the subtree
               (values bottom-version bottom-min-jump))])
-          (g2 s k version min-jump top-version)))
+          (g2 s k version min-jump top-destructive-top)))
       top-version
       top-min-jump
-      destructive-top)))
+      top-destructive-top)))
 
 ; Disjunction with two live branches
 (define mplus

@@ -9,8 +9,6 @@
 ;; between 'code' and 'clos' for the output value might help, although
 ;; I'm not sure I understand this distinction.
 
-(load "backjumping2.scm")
-
 ;;; Syntax
 
 ;; Peano numbers
@@ -179,6 +177,7 @@
 (define quine
   '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
     (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
+
 ;(ok
   ;(normalize
     ;(run* (q)
@@ -187,13 +186,19 @@
           ;`(code ,quine)))))
 
 ;;;; Quine generation.
-(display (time (length (run 2 (q)
-                   (ev '()
-                       q
-                       `(code ,q))))))
-(display "\n")
 
-(display count)
+(time (begin
+        (display "\n")
+        (display (length (normalize
+                           (run 15 (q)
+                                (ev '()
+                                    q
+                                    `(code ,q))))))
+        (display "\n")
+        (display count)
+        (display "\n")))
+
+
 
 ;;; Twine generation.
 ;(ok

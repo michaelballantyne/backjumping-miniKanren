@@ -45,13 +45,15 @@
       ((and (var? u) (assq u S)) =>
        (lambda (a)
          (let-values ([(r r-f) (walk-f (rhs a) S min-jump)])
-           (let ([assoc-f (car (cdr (cdr a)))])
-             (values r (max r-f (if (> assoc-f min-jump) 0 assoc-f)))))))
+           (let ([assoc-f (car (cdr (cdr a)))]
+                 [other-f (car (cdr (cdr (cdr a))))])
+             (values r (max (if (> other-f min-jump) 0 other-f)
+                         (max r-f (if (> assoc-f min-jump) 0 assoc-f))))))))
       (else (values u 0)))))
 
 (define ext-s
-  (lambda (x v version s)
-    (cons `(,x ,v ,version) s)))
+  (lambda (x v version s jump)
+    (cons `(,x ,v ,version ,jump) s)))
 
 (define unify
   (lambda (u^ v^ s version min-jump)
@@ -59,8 +61,8 @@
                  [(v v-f) (walk-f v^ s min-jump)])
       (cond
         ((eq? u v) (values s #f))
-        ((var? u) (ext-s-check u v^ version s (max u-f v-f)))
-        ((var? v) (ext-s-check v u^ version s (max u-f v-f)))
+        ((var? u) (ext-s-check u v version s (max u-f v-f)))
+        ((var? v) (ext-s-check v u version s (max u-f v-f)))
         ((and (pair? u) (pair? v))
          (let-values ([(car-s car-f)
                        (unify (car u) (car v) s version min-jump)])
@@ -80,7 +82,7 @@
   (lambda (x v version s jump)
     (cond
       ((occurs-check x v s) (values #f jump))
-      (else (values (ext-s x v version s) #f)))))
+      (else (values (ext-s x v version s jump) #f)))))
 
 (define occurs-check
   (lambda (x v s)
@@ -109,7 +111,7 @@
     (let ((v (walk v s)))
       (cond
         ((var? v)
-         (ext-s v (reify-name (size-s s)) 0 s))
+         (ext-s v (reify-name (size-s s)) 0 s 0))
         ((pair? v) (reify-s (cdr v)
                      (reify-s (car v) s)))
         (else s)))))

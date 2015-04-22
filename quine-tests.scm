@@ -9,32 +9,8 @@
 ;; between 'code' and 'clos' for the output value might help, although
 ;; I'm not sure I understand this distinction.
 
-(load "backjumping.scm")
 
-(define nl (string #\newline))
-
-(define (cout . args)
-  (for-each (lambda (x)
-              (if (procedure? x) (x) (display x)))
-            args))
-
-(define errorf
-  (lambda (tag . args)
-    (printf "Failed: ~s: ~%" tag)
-    (apply printf args)
-    (error 'WiljaCodeTester "That's all, folks!")))
-
-(define-syntax test-check
-  (syntax-rules ()
-                ((_ title tested-expression expected-result)
-                 (begin
-                   (cout "Testing " title nl)
-                   (let* ((expected expected-result)
-                          (produced tested-expression))
-                     (or (equal? expected produced)
-                         (errorf 'test-check
-                                 "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
-                                 'tested-expression expected produced)))))))
+(load "test-check.scm")
 
 ;;; Syntax
 
@@ -226,7 +202,6 @@
         '((lambda ((vr x)) (vr x)) (quote 5))
         q))
   '((code 5)))
-  
 
 (test-check "to5"
   (length (run 10 (q)
@@ -256,7 +231,7 @@
        (ev '()
            q
            `(code ,q)))
-  '??)
+  '(((lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))) '(lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))))))
 
 ;;; Quine generation.
 ;(display (time (length (run 2 (q)

@@ -138,13 +138,15 @@
 (define-syntax run
   (syntax-rules ()
     ((_ n (x) g0 g ...)
-     (take n
-       (lambdaf@ ()
-         ((fresh (x) g0 g ...
-            (lambdag@ (s k)
-              (cons (reify x s) '())))
-          empty-s
-          (lambda (s) s)))))))
+     (begin
+       (set! count 0)
+       (take n
+             (lambdaf@ ()
+                       ((fresh (x) g0 g ...
+                          (lambdag@ (s k)
+                                    (cons (reify x s) '())))
+                        empty-s
+                        (lambda (s) s))))))))
 
 (define take
   (lambda (n f)
@@ -162,6 +164,7 @@
   (lambda (u v)
     (lambdag@ (s k)
       (let ((s (unify u v s)))
+        (set! count (+ 1 count))
         (if s (k s) #f)))))
 
 (define-syntax fresh
@@ -176,7 +179,6 @@
   (syntax-rules ()
     ((_ g) g)
     ((_ g0 g ...) (conj g0 (bind* g ...)))))
-
 
 (define (conj g1 g2)
   (lambdag@ (s k)

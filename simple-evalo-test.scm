@@ -1,30 +1,4 @@
-(load "backjumping.scm")
-
-(define nl (string #\newline))
-
-(define (cout . args)
-  (for-each (lambda (x)
-              (if (procedure? x) (x) (display x)))
-            args))
-
-(define errorf
-  (lambda (tag . args)
-    (printf "Failed: ~s: ~%" tag)
-    (apply printf args)
-    (error 'WiljaCodeTester "That's all, folks!")))
-
-(define-syntax test-check
-  (syntax-rules ()
-                ((_ title tested-expression expected-result)
-                 (begin
-                   (cout "Testing " title nl)
-                   (let* ((expected expected-result)
-                          (produced tested-expression))
-                     (or (equal? expected produced)
-                         (errorf 'test-check
-                                 "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
-                                 'tested-expression expected produced)))))))
-
+(load "test-check.scm")
 
 (define (evalo e v)
   (conde
@@ -43,4 +17,6 @@
        (== `(,v . ,d) inner-v)
        )]))
 
-(run 1000 (q) (evalo q #t))
+(test-check "simple evalo"
+  (time (length (run 1000 (q) (evalo q #t))))
+  1000)
