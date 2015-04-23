@@ -65,8 +65,8 @@
                  [(v v-f) (walk-f v^ s min-jump)])
       (cond
         ((eq? u v) (values s #f))
-        ((var? u) (ext-s-check u v version s (max u-f v-f)))
-        ((var? v) (ext-s-check v u version s (max u-f v-f)))
+        ((var? u) (ext-s-check u v version min-jump s (max u-f v-f)))
+        ((var? v) (ext-s-check v u version min-jump s (max u-f v-f)))
         ((and (pair? u) (pair? v))
          (let-values ([(car-s car-f)
                        (unify (car u) (car v) s version min-jump)])
@@ -83,12 +83,25 @@
           (values #f (max u-f v-f)))))))
 
 (define ext-s-check
-  (lambda (x v version s jump)
-    (cond
-      ((occurs-check x v s) (values #f jump))
-      (else (values (ext-s x v version s jump) #f)))))
+  (lambda (x v version min-jump s jump)
+    (let ([check-reason (occurs-check x v s min-jump)])
+      (cond
+        (check-reason (values #f (max check-reason jump)))
+        (else (values (ext-s x v version s jump) #f))))))
 
 (define occurs-check
+  (lambda (x v s min-jump)
+    (let-values ([(v v-f) (walk-f v s min-jump)])
+      (cond
+        [(and (var? v) (eq? v x)) v-f]
+        [(pair? v)
+         (or
+           (occurs-check x (car v) s min-jump)
+           (occurs-check x (cdr v) s min-jump))]
+        [else #f]))))
+
+
+#;(define occurs-check
   (lambda (x v s)
     (let ((v (walk v s)))
       (cond
@@ -166,7 +179,7 @@
        (take n
              (lambdaf@ ()
                        ((fresh (x) g0 g ...
-                          #;(lambdag@ (s k version min-jump destructive-top)
+                          (lambdag@ (s k version min-jump destructive-top)
                                     (cons (reify x s) '())))
                         empty-s ; s
                         (lambda (s version min-jump destructive-top) s) ; k
@@ -174,6 +187,28 @@
                         0 ; min-jump
                         0 ; destructive-top (oldest version a jump can destroy)
                         )))))))
+
+(define-syntax run-inc
+  (syntax-rules ()
+    ((_ n (x) g0 g ...)
+     (begin
+       (set! count 0)
+       (let ([t (current-time)])
+         (take-inc n t t 1
+                 (lambdaf@ ()
+                           ((fresh (x) g0 g ...
+                              (lambdag@ (s k version min-jump destructive-top)
+                                        (cons (reify x s) '())))
+                            empty-s ; s
+                            (lambda (s version min-jump destructive-top) s) ; k
+                            0 ; version
+                            0 ; min-jump
+                            0 ; destructive-top (oldest version a jump can destroy)
+                            ))))))))
+
+(define-syntax run-inc*
+  (syntax-rules ()
+    ((_ (x) g ...) (run-inc #f (x) g ...))))
 
 (define take
   (lambda (n f)
@@ -186,6 +221,39 @@
         ((a f)
          (cons (car a)
            (take (and n (- n 1)) f)))))))
+
+(define (time-millis t)
+  (+ (* (time-second t) 1000)
+     (/ (time-nanosecond t) 1000000)))
+
+(define (elapsed t1 t2)
+  (exact->inexact (-
+                    (time-millis t2)
+                    (time-millis t1))))
+
+(define take-inc
+  (lambda (n orig-t last-t i f)
+    (cond
+      ((and n (zero? n)) '())
+      (else
+       (case-inf (f)
+         ((target mode) (begin
+                          (printf "Failed after ~a second(s)\n" (elapsed orig-t))
+                          '()))
+         ((f) (take-inc n orig-t last-t i f))
+         ((c) (let ([this-t (current-time)])
+                (begin
+                  (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                  ; (pretty-print c)
+                  ; (printf "\n")
+                  (cons c '()))))
+         ((c f) (let ([this-t (current-time)])
+                  (begin
+                    (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                    ; (pretty-print c)
+                    ; (printf "\n")
+                    (cons c
+                          (take-inc (and n (- n 1)) orig-t this-t (+ i 1) f))))))))))
 
 (define last-failure #f)
 

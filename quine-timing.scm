@@ -9,9 +9,6 @@
 ;; between 'code' and 'clos' for the output value might help, although
 ;; I'm not sure I understand this distinction.
 
-
-(load "test-check.scm")
-
 ;;; Syntax
 
 ;; Peano numbers
@@ -181,79 +178,20 @@
   '((lambda ((vr z)) (list (vr z) (list (quote quote) (vr z))))
     (quote (lambda ((vr z)) (list (vr z) (list (quote quote) (vr z)))))))
 
-(test-check "identity-check"
-  (run* (q)
-    (ev '()
-        '((lambda ((vr x)) (vr x)) (quote 5))
-        '(code 5)))
-  '(_.0))
+;(ok
+  ;(normalize
+    ;(run* (q)
+      ;(ev '()
+          ;quine
+          ;`(code ,quine)))))
 
-(test-check "check-quine"
-  (run* (q)
-    (== q quine)
-    (ev '()
-        quine
-        `(code ,quine)))
-  (list quine))
+;;;; Quine generation.
 
+(run-inc* (q)
+         (ev '()
+             q
+             `(code ,q)))
 
-(test-check "identity"
-  (run 1 (q)
-    (ev '()
-        '((lambda ((vr x)) (vr x)) (quote 5))
-        q))
-  '((code 5)))
-
-(test-check "to5"
-  (length (run 10 (q)
-       (ev '()
-           `(list ,q '6)
-           '(code (5 6)))))
-  10)
-
-(test-check "identity-backwards"
-  (run 2 (q)
-    (ev '()
-        `((lambda ((vr x)) (vr x)) ,q)
-        '(code 5)))
-  '('5 ((lambda ((vr _.0)) '5) (lambda ((vr _.1)) _.2))))
-
-(test-check "trivial quine check"
-  (run 1 (q)
-       (== q quine)
-       (ev '()
-           q
-           `(code ,q)))
-  '(((lambda ((vr z)) (list (vr z) (list 'quote (vr z))))
-   '(lambda ((vr z)) (list (vr z) (list 'quote (vr z)))))))
-
-(test-check "first quine"
-  (run 1 (q)
-       (ev '()
-           q
-           `(code ,q)))
-  '(((lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))) '(lambda ((vr _.0)) (list (vr _.0) (list 'quote (vr _.0)))))))
-
-(test-check "2 quines"
-  (time (length (run 2 (q)
-                     (ev '()
-                         q
-                         `(code ,q)))))
-  2)
-
-
-(test-check "30 quines"
-  (time (length (run 30 (q)
-                     (ev '()
-                         q
-                         `(code ,q)))))
-  30)
-
-;;; Quine generation.
-;(display (time (length (run 2 (q)
-                   ;(ev '()
-                       ;q
-                       ;`(code ,q))))))
 
 ;;; Twine generation.
 ;(ok
