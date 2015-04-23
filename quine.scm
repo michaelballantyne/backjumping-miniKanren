@@ -187,16 +187,21 @@
 
 ;;;; Quine generation.
 
-(time (begin
-        (display "\n")
-        (display (length (normalize
-                           (run 15 (q)
-                                (ev '()
-                                    q
-                                    `(code ,q))))))
-        (display "\n")
-        (display count)
-        (display "\n")))
+(call/cc
+  (lambda (k)
+    (with-exception-handler
+      (lambda (e) (k))
+      (lambda ()
+        (time (begin
+                (display "\n")
+                (display (length (normalize
+                                   (run 13 (q)
+                                        (ev '()
+                                            q
+                                            `(code ,q))))))
+                (display "\n")
+                (display count)
+                (display "\n")))))))
 
 
 

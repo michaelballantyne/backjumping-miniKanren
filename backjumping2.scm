@@ -22,9 +22,13 @@
   (syntax-rules ()
     ((_ x) (length x))))
 
+(define varctr 0)
+
 (define-syntax var
   (syntax-rules ()
-    ((_ x) (vector x))))
+    ((_ x) (begin
+             (set! varctr (+ 1 varctr))
+             (vector varctr x)))))
 
 (define-syntax var?
   (syntax-rules ()
@@ -162,7 +166,7 @@
        (take n
              (lambdaf@ ()
                        ((fresh (x) g0 g ...
-                          (lambdag@ (s k version min-jump destructive-top)
+                          #;(lambdag@ (s k version min-jump destructive-top)
                                     (cons (reify x s) '())))
                         empty-s ; s
                         (lambda (s version min-jump destructive-top) s) ; k
@@ -183,16 +187,24 @@
          (cons (car a)
            (take (and n (- n 1)) f)))))))
 
+(define last-failure #f)
 
 (define ==
   (lambda (u v)
-    (lambdag@ (s k version min-jump destructive-top)
+    (lambdag@ (s-in k version min-jump destructive-top)
       (begin
-        (let-values ([(s s-f) (unify u v s version min-jump)])
+        (let-values ([(s s-f) (unify u v s-in version min-jump)])
                     (set! count (+ 1 count))
                     (if s
                       (k s version min-jump destructive-top)
-                      (failure s-f destructive-top)))))))
+                      (begin
+                        (set! last-failure `(failing-unification
+                                              (numbers ,version ,min-jump ,destructive-top)
+                                              (u ,u)
+                                              (v ,v)
+                                              (failure ,s-f ,destructive-top)
+                                              (s ,s-in)))
+                        (failure s-f destructive-top))))))))
 
 (define succeed (== #f #f))
 (define fail (== #f #t))
@@ -274,7 +286,7 @@
          ; we'll resume the jump with this node's version.
          (mplus-failure (f) version (min target version) destructive-top)))
       ((f^) (inc (mplus (f) f^ version destructive-top)))
-      ((a) (choice a (inc (mplus-success (f) version version destructive-top))))
+      ((a) (choice a (inc (mplus-success (f) version version destructive-top a))))
       ((a f^) (choice a (inc (mplus (f) f^ version destructive-top)))))))
 
 ; Disjunction where one branch succeeded finitely or failed
@@ -286,7 +298,7 @@
          ; Backjumping beyond here and have the mode to do it destructively.
          ; Propagate failure and if we have a more powerful destructive-top
          ; use that as new mode.
-         (failure target destructive-top) ; TODO: previously had (min mode destructive-top) but that was apparently wrong. I don't understand why.
+         (failure target destructive-top) ; TODO: previously had (min mode destructive-top) but that was apparently wrong. I don't understand why. Maybe it was right and something else is broken.
 
          ; Otherwise combine the failure with the previous. Ignore the mode
          ; of the triggering failure because either it wasn't powerful enough
@@ -297,22 +309,33 @@
       ((a) a)
       ((a f^) (choice a (inc (mplus-failure (f^) version other-target destructive-top)))))))
 
+(define the-success #f)
+
 (define mplus-success
-  (lambda (a-inf version other-target destructive-top)
+  (lambda (a-inf version other-target destructive-top a)
     (case-inf a-inf
       ((target mode)
        (if (and (<= target version) (<= mode version))
          ; Backjumping beyond here and have the mode to do it destructively.
          ; Propagate failure and if we have a more powerful destructive-top
          ; use that as new mode.
-         (error 'error "destructive failure after success")
+         (begin
+           (set! the-success a)
+           (display "\n")
+           (pretty-print (list version other-target destructive-top a))
+           (display "\n")
+           (display "\n")
+           (pretty-print last-failure)
+           (display "\n")
+           (raise
+             "destructive failure after success"))
 
          ; Otherwise combine the failure with the previous. Ignore the mode
          ; of the triggering failure because either it wasn't powerful enough
          ; to jump past here or the jump ended prior to this point and we're
          ; on a new jump.
          (failure (max target other-target) destructive-top)))
-      ((f^) (inc (mplus-success (f^) version other-target destructive-top)))
+      ((f^) (inc (mplus-success (f^) version other-target destructive-top a)))
       ((a) a)
-      ((a f^) (choice a (inc (mplus-success (f^) version other-target destructive-top)))))))
+      ((a f^) (choice a (inc (mplus-success (f^) version other-target destructive-top a)))))))
 
