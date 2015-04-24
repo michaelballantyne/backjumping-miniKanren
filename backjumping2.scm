@@ -8,7 +8,7 @@
 
 (define-syntax run*
   (syntax-rules ()
-    ((_ (x) g ...) (run #f (x) g ...))))
+    ((_ (x0 x ...) g ...) (run #f (x0 x ...) g ...))))
 
 (define-syntax rhs
   (syntax-rules ()
@@ -170,7 +170,12 @@
                         0 ; version
                         0 ; min-jump
                         0 ; destructive-top (oldest version a jump can destroy)
-                        )))))))
+                        )))))
+    ((_ n (x0 x ...) g0 g ...)
+     (run n (q)
+          (fresh (x0 x ...)
+            (== q (list x0 x ...))
+            g0 g ...)))))
 
 (define-syntax run-inc
   (syntax-rules ()

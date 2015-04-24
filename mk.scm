@@ -11,7 +11,7 @@
 
 (define-syntax run*
   (syntax-rules ()
-    ((_ (x) g ...) (run #f (x) g ...))))
+    ((_ (x0 x ...) g ...) (run #f (x0 x ...) g ...))))
 
 (define-syntax rhs
   (syntax-rules ()
@@ -147,7 +147,12 @@
                        ((fresh (x) g0 g ... 
                           (lambdag@ (s)
                                     (cons (reify x s) '())))
-                        empty-s)))))))
+                        empty-s)))))
+    ((_ n (x0 x ...) g0 g ...)
+     (run n (q)
+          (fresh (x0 x ...)
+            (== q (list x0 x ...))
+            g0 g ...)))))
  
 (define take
   (lambda (n f)
