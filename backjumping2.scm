@@ -160,17 +160,19 @@
     ((_ n (x) g0 g ...)
      (begin
        (set! count 0)
-       (take n
-             (lambdaf@ ()
-                       ((fresh (x) g0 g ...
-                          (lambdag@ (s k version min-jump destructive-top)
-                                    (cons (reify x s) '())))
-                        empty-s ; s
-                        (lambda (s version min-jump destructive-top) s) ; k
-                        0 ; version
-                        0 ; min-jump
-                        0 ; destructive-top (oldest version a jump can destroy)
-                        )))))
+       (let ([x (var 'x)])
+         (map
+           (lambda (s)
+             (reify x s))
+           (take n
+               (lambdaf@ ()
+                         ((fresh () g0 g ...)
+                          empty-s ; s
+                          (lambda (s version min-jump destructive-top) s) ; k
+                          0 ; version
+                          0 ; min-jump
+                          0 ; destructive-top (oldest version a jump can destroy)
+                          )))))))
     ((_ n (x0 x ...) g0 g ...)
      (run n (q)
           (fresh (x0 x ...)
@@ -206,9 +208,9 @@
       (case-inf (f)
         ((target mode) '())
         ((f) (take n f))
-        ((a) a)
+        ((a) (list a))
         ((a f)
-         (cons (car a)
+         (cons a
            (take (and n (- n 1)) f)))))))
 
 (define (time-millis t)
