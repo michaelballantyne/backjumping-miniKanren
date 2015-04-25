@@ -168,56 +168,6 @@
          (cons a
            (take (and n (- n 1)) f)))))))
 
-(define-syntax run-inc
-  (syntax-rules ()
-    ((_ n (x) g0 g ...)
-     (let ([t (current-time)])
-       (take-inc n t t 1
-                 (lambdaf@ ()
-                           ((fresh (x) g0 g ... 
-                              (lambdag@ (s)
-                                        (cons (reify x s) '())))
-                            empty-s)))))))
-
-(define-syntax run-inc*
-  (syntax-rules ()
-    ((_ (x) g ...) (run-inc #f (x) g ...))))
-
-(define (time-millis t)
-  (+ (* (time-second t) 1000)
-     (/ (time-nanosecond t) 1000000)))
-
-(define (elapsed t1 t2)
-  (exact->inexact (-
-                    (time-millis t2)
-                    (time-millis t1))))
-
-(define take-inc
-  (lambda (n orig-t last-t i f)
-    (cond
-      ((and n (zero? n)) '())
-      (else
-       (case-inf (f)
-         (() (begin
-                          (printf "Failed after ~a second(s)\n" (elapsed orig-t))
-                          '()))
-         ((f) (take-inc n orig-t last-t i f))
-         ((c) (let ([this-t (current-time)])
-                (begin
-                  (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
-                  ; (pretty-print c)
-                  ; (printf "\n")
-                  (cons c '()))))
-         ((c f) (let ([this-t (current-time)])
-                  (begin
-                    (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
-                    ; (pretty-print c)
-                    ; (printf "\n")
-                    (cons c
-                          (take-inc (and n (- n 1)) orig-t this-t (+ i 1) f))))))))))
-
-
-
 
 (define ==
   (lambda (u v)
@@ -261,7 +211,7 @@
     ((_ e) e)
     ((_ e0 e ...) (mplus e0 
                     (lambdaf@ () (mplus* e ...))))))
- 
+
 (define mplus
   (lambda (a-inf f)
     (case-inf a-inf
@@ -277,7 +227,7 @@
        (inc
          (ifa ((g0 s) g ...)
               ((g1 s) g^ ...) ...))))))
- 
+
 (define-syntax ifa
   (syntax-rules ()
     ((_) (mzero))
@@ -296,7 +246,7 @@
        (inc
          (ifu ((g0 s) g ...)
               ((g1 s) g^ ...) ...))))))
- 
+
 (define-syntax ifu
   (syntax-rules ()
     ((_) (mzero))
@@ -324,3 +274,54 @@
     (condu
       (g succeed)
       ((== #f #f) fail))))
+
+
+; Run interface for timing tests on large queries
+
+(define (time-millis t)
+  (+ (* (time-second t) 1000)
+     (/ (time-nanosecond t) 1000000)))
+
+(define (elapsed t1 t2)
+  (exact->inexact (-
+                    (time-millis t2)
+                    (time-millis t1))))
+
+(define take-inc
+  (lambda (n orig-t last-t i f)
+    (cond
+      ((and n (zero? n)) '())
+      (else
+       (case-inf (f)
+         (() (begin
+                          (printf "Failed after ~a second(s)\n" (elapsed orig-t))
+                          '()))
+         ((f) (take-inc n orig-t last-t i f))
+         ((c) (let ([this-t (current-time)])
+                (begin
+                  (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                  ; (pretty-print c)
+                  ; (printf "\n")
+                  (cons c '()))))
+         ((c f) (let ([this-t (current-time)])
+                  (begin
+                    (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                    ; (pretty-print c)
+                    ; (printf "\n")
+                    (cons c
+                          (take-inc (and n (- n 1)) orig-t this-t (+ i 1) f))))))))))
+
+(define-syntax run-inc
+  (syntax-rules ()
+    ((_ n (x) g0 g ...)
+     (let ([t (current-time)])
+       (take-inc n t t 1
+                 (lambdaf@ ()
+                           ((fresh (x) g0 g ...
+                              (lambdag@ (s)
+                                        (cons (reify x s) '())))
+                            empty-s)))))))
+
+(define-syntax run-inc*
+  (syntax-rules ()
+    ((_ (x) g ...) (run-inc #f (x) g ...))))

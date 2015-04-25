@@ -1,6 +1,7 @@
 (define-syntax lambdag@
   (syntax-rules ()
-    ((_ (s k version min-jump destructive-top) e) (lambda (s k version min-jump destructive-top) e))))
+    ((_ (s k version min-jump destructive-top) e)
+     (lambda (s k version min-jump destructive-top) e))))
 
 (define-syntax lambdaf@
   (syntax-rules ()
@@ -152,7 +153,6 @@
          (else (let ((a (car a-inf)) (f (cdr a-inf)))
                  e3)))))))
 
-
 (define count 0)
 
 (define-syntax run
@@ -179,28 +179,6 @@
             (== q (list x0 x ...))
             g0 g ...)))))
 
-(define-syntax run-inc
-  (syntax-rules ()
-    ((_ n (x) g0 g ...)
-     (begin
-       (set! count 0)
-       (let ([t (current-time)])
-         (take-inc n t t 1
-                 (lambdaf@ ()
-                           ((fresh (x) g0 g ...
-                              (lambdag@ (s k version min-jump destructive-top)
-                                        (cons (reify x s) '())))
-                            empty-s ; s
-                            (lambda (s version min-jump destructive-top) s) ; k
-                            0 ; version
-                            0 ; min-jump
-                            0 ; destructive-top (oldest version a jump can destroy)
-                            ))))))))
-
-(define-syntax run-inc*
-  (syntax-rules ()
-    ((_ (x) g ...) (run-inc #f (x) g ...))))
-
 (define take
   (lambda (n f)
     (if (and n (zero? n))
@@ -212,39 +190,6 @@
         ((a f)
          (cons a
            (take (and n (- n 1)) f)))))))
-
-(define (time-millis t)
-  (+ (* (time-second t) 1000)
-     (/ (time-nanosecond t) 1000000)))
-
-(define (elapsed t1 t2)
-  (exact->inexact (-
-                    (time-millis t2)
-                    (time-millis t1))))
-
-(define take-inc
-  (lambda (n orig-t last-t i f)
-    (cond
-      ((and n (zero? n)) '())
-      (else
-       (case-inf (f)
-         ((target mode) (begin
-                          (printf "Failed after ~a second(s)\n" (elapsed orig-t))
-                          '()))
-         ((f) (take-inc n orig-t last-t i f))
-         ((c) (let ([this-t (current-time)])
-                (begin
-                  (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
-                  ; (pretty-print c)
-                  ; (printf "\n")
-                  (cons c '()))))
-         ((c f) (let ([this-t (current-time)])
-                  (begin
-                    (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
-                    ; (pretty-print c)
-                    ; (printf "\n")
-                    (cons c
-                          (take-inc (and n (- n 1)) orig-t this-t (+ i 1) f))))))))))
 
 (define ==
   (lambda (u v)
@@ -279,7 +224,6 @@
            destructive-top
            (bind* g0 g ...)
            (bind* g1 g^ ...) ...))))))
-
 
 (define-syntax bind*
   (syntax-rules ()
@@ -356,3 +300,61 @@
       ((f^) (inc (mplus-single (f^) version destructive-top other-target)))
       ((a) a)
       ((a f^) (choice a (inc (mplus-single (f^) version destructive-top other-target)))))))
+
+
+; Run interface for timing tests on large queries
+
+(define (time-millis t)
+  (+ (* (time-second t) 1000)
+     (/ (time-nanosecond t) 1000000)))
+
+(define (elapsed t1 t2)
+  (exact->inexact (-
+                    (time-millis t2)
+                    (time-millis t1))))
+
+(define take-inc
+  (lambda (n orig-t last-t i f)
+    (cond
+      ((and n (zero? n)) '())
+      (else
+       (case-inf (f)
+         ((target mode) (begin
+                          (printf "Failed after ~a second(s)\n" (elapsed orig-t))
+                          '()))
+         ((f) (take-inc n orig-t last-t i f))
+         ((c) (let ([this-t (current-time)])
+                (begin
+                  (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                  ; (pretty-print c)
+                  ; (printf "\n")
+                  (cons c '()))))
+         ((c f) (let ([this-t (current-time)])
+                  (begin
+                    (printf "~a\t~a\t~a\n" i (elapsed orig-t this-t) (elapsed last-t this-t))
+                    ; (pretty-print c)
+                    ; (printf "\n")
+                    (cons c
+                          (take-inc (and n (- n 1)) orig-t this-t (+ i 1) f))))))))))
+
+(define-syntax run-inc
+  (syntax-rules ()
+    ((_ n (x) g0 g ...)
+     (begin
+       (set! count 0)
+       (let ([t (current-time)])
+         (take-inc n t t 1
+                 (lambdaf@ ()
+                           ((fresh (x) g0 g ...
+                              (lambdag@ (s k version min-jump destructive-top)
+                                        (cons (reify x s) '())))
+                            empty-s ; s
+                            (lambda (s version min-jump destructive-top) s) ; k
+                            0 ; version
+                            0 ; min-jump
+                            0 ; destructive-top (oldest version a jump can destroy)
+                            ))))))))
+
+(define-syntax run-inc*
+  (syntax-rules ()
+    ((_ (x) g ...) (run-inc #f (x) g ...))))
