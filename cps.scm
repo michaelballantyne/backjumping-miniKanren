@@ -11,7 +11,7 @@
 
 (define-syntax run*
   (syntax-rules ()
-    ((_ (x) g ...) (run #f (x) g ...))))
+    ((_ (x0 x ...) g ...) (run #f (x0 x ...) g ...))))
 
 (define-syntax rhs
   (syntax-rules ()
@@ -135,6 +135,8 @@
          (else (let ((a (car a-inf)) (f (cdr a-inf)))
                  e3)))))))
 
+(define count 0)
+
 (define-syntax run
   (syntax-rules ()
     ((_ n (x) g0 g ...)
@@ -142,11 +144,16 @@
        (set! count 0)
        (take n
              (lambdaf@ ()
-                       ((fresh (x) g0 g ...
+                       ((fresh (x) g0 g ... 
                           (lambdag@ (s k)
                                     (cons (reify x s) '())))
                         empty-s
-                        (lambda (s) s))))))))
+                        (lambda (s) s))))))
+    ((_ n (x0 x ...) g0 g ...)
+     (run n (q)
+          (fresh (x0 x ...)
+            (== q (list x0 x ...))
+            g0 g ...)))))
 
 (define take
   (lambda (n f)

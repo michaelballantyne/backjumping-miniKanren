@@ -10,7 +10,7 @@
                            (printf
                              "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
                              'tested-expression expected produced)
-                           #;(error 'bad "test failed"))))))))
+                           (error 'bad "test failed"))))))))
 
 (define (lset=? l1 l2)
   (or (equal? l1 l2)
@@ -31,11 +31,14 @@
                    (printf "Testing ~s\n" title)
                    (let* ((expected expected-result)
                           (produced tested-expression))
-                     (or (lset=? expected produced)
-                         (begin
-                           (printf
-                             "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
-                             'tested-expression expected produced)
-                           #;(error 'bad "test failed"))))))))
+                     (if (lset=? expected produced)
+                       (begin
+                        (printf "\nUnifications: ~a\n\n\n" count)
+                         #t)
+                       (begin
+                         (printf
+                           "Failed: ~a~%Expected: ~a~%Computed: ~a~%"
+                           'tested-expression expected produced)
+                         #;(error 'bad "test failed"))))))))
 
 
