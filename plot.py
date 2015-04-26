@@ -5,8 +5,8 @@ matplotlib.use('PDF')
 
 import matplotlib.pyplot as plt
 
-standard_data = numpy.genfromtxt("mkscmout.tsv", names=True, delimiter="\t")
-backjumping_data = numpy.genfromtxt("backjumping2scmplot.tsv", names=True, delimiter="\t")
+standard_data = numpy.genfromtxt("timing-mk.tsv", names=True, delimiter="\t")
+backjumping_data = numpy.genfromtxt("timing-backjumping2.tsv", names=True, delimiter="\t")
 
 
 plt.plot(standard_data['quine'],
