@@ -1,0 +1,34 @@
+<html>
+<head>
+<script src="vis/dist/vis.min.js"></script>
+<link href="vis/dist/vis.min.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+<h2>A broken idea for min jump</h2>
+
+<p>Will asked why we couldn't just not put a version number on unifications made in a position that appears to be in the direct left hand side of a conjunction in order to achieve the same as min-jup. We can't do that because there may be another conjunction at a higher level that will use that unification as a jump target, even if it shouldn't be a target for elements in the RHS of the nearest conjunction. The unification in version 1 below is a good example.</p>
+<div id="container"></div>
+<script src="vis.js"></script>
+<script type="text/javascript">
+
+visualize(
+    conj(
+        disj(
+            conj(
+                uni,
+                disj(
+                    uni,
+                    dot
+                )
+            ),
+            dot
+        ),
+        uni
+    )
+);
+
+</script>
+</body>
+</html>
+

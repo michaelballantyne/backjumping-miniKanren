@@ -1,0 +1,43 @@
+<html>
+<head>
+<script src="vis/dist/vis.min.js"></script>
+<link href="vis/dist/vis.min.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<h2>Justification for min-jump</h2>
+
+<p>If the unification in version 5 fails, we don't want it to report version 4 as the reason for failure, even if the unification in version 4 is involved. That's because in all executions in which the unification at version 5 occurs, so does the one at version 4. So to make unification at 5 succeed, we need to change something else - perhaps the unification at version 1.</p>
+<div id="container"></div>
+<script src="vis.js"></script>
+<script type="text/javascript">
+
+visualize(
+
+        conj(
+            disj(
+                conj(
+                    uni,
+                    disj(
+                        uni,
+                        dot
+                    )
+                ),
+                dot
+            ),
+            disj(
+                conj(
+                    uni,
+                    disj(
+                        uni,
+                        dot
+                    )
+                ),
+                dot
+            )
+        )
+
+);
+
+</script>
+</body>
+</html>

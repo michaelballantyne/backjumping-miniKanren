@@ -1,0 +1,48 @@
+<html>
+<head>
+<script src="vis/dist/vis.min.js"></script>
+<link href="vis/dist/vis.min.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+
+<h2>Incorrect min-jump</h2>
+
+<p>
+Compare to <a href="3.html">another form</a> of the same query. In this form the last unification sees the previous unification as a possible backjump target, even though every execution that reaches the last unification must also reach the preceding one.
+</p>
+
+<div id="container"></div>
+<script src="vis.js"></script>
+<script type="text/javascript">
+
+visualize(
+
+    conj(
+        disj(conj(
+            conj(
+                uni,
+                disj(
+                    conj(
+                        disj(
+                            uni,
+                            dot
+                        ),
+                        disj(
+                            uni,
+                            dot
+                        )
+                    ),
+                    dot
+                )
+            ),
+            uni
+        ),
+            dot),
+        uni
+    )
+
+);
+
+</script>
+</body>
+</html>
